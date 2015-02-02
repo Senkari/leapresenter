@@ -111,6 +111,7 @@ namespace PowerPointAddIn1
                                         {
                                             if (!penMode)
                                             {
+                                                canvas.Cursor = Cursors.Pen;
                                                 var canvasSettings = canvas.DefaultDrawingAttributes;
                                                 canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
                                                 canvasSettings.Width = 10;
@@ -125,6 +126,7 @@ namespace PowerPointAddIn1
                                         {
                                             if (!eraserMode)
                                             {
+                                                canvas.Cursor = Cursors.Cross;
                                                 canvas.EditingMode = InkCanvasEditingMode.EraseByPoint;
                                                 canvas.EraserShape = new System.Windows.Ink.EllipseStylusShape(15, 15);
                                                 if (penMode)
@@ -139,6 +141,7 @@ namespace PowerPointAddIn1
                                         }
                                         else if (penMode || eraserMode)
                                         {
+                                            canvas.Cursor = Cursors.Arrow;
                                             MouseCursor.sendLeftMouseUp();
                                             penMode = false;
                                             eraserMode = false;
@@ -169,13 +172,13 @@ namespace PowerPointAddIn1
                         if (swipe.Direction.x > 0.0f)
                         {
                             window.View.Next();
-                            //canvas.Strokes.Clear();
+                            canvas.Strokes.Clear();
                             return;
                         }
                         else if (swipe.Direction.x < 0.0f)
                         {
                             window.View.Previous();
-                            //canvas.Strokes.Clear();
+                            canvas.Strokes.Clear();
                             return;
                         }
 
@@ -200,7 +203,7 @@ namespace PowerPointAddIn1
             this.listener = new LeapEventListener(this);
             controller.AddListener(listener);
             canvas.UseCustomCursor = true;
-            canvas.Cursor = Cursors.Pen;
+            canvas.Cursor = Cursors.Arrow;
             Closing += this.Overlay_Closing;
         }
 
