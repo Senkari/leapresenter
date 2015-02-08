@@ -84,6 +84,19 @@ namespace PowerPointAddIn1
 
                     updateCursor(index, ring, pinky);
 
+                    if (thumb.IsExtended)
+                    {
+                        setPenMode(canvas);
+                    }
+                    else if (middle.IsExtended)
+                    {
+                        setEraserMode(canvas);
+                    }
+                    else if ((thumb.IsExtended && middle.IsExtended) || (!thumb.IsExtended && !middle.IsExtended))
+                    {
+                        setCursorMode(canvas);
+                    }
+
                     GestureList gestures = currentFrame.Gestures();
 
                     for (int i = 0; i < gestures.Count(); i++)
@@ -103,18 +116,6 @@ namespace PowerPointAddIn1
                             {
                                 cooldownTimeLeft = cooldownTime;
                                 previousSlide();
-                            }
-                            else if (thumb.IsExtended)
-                            {
-                                setPenMode(canvas);
-                            }
-                            else if (middle.IsExtended)
-                            {
-                                setEraserMode(canvas);
-                            }
-                            else if ((thumb.IsExtended && middle.IsExtended) || (!thumb.IsExtended && !middle.IsExtended))
-                            {
-                                setCursorMode(canvas);
                             }
                         }
                     }
