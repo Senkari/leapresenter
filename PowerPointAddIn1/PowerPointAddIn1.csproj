@@ -205,7 +205,6 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <None Include="PowerPointAddIn1_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -239,10 +238,10 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>PowerPointAddIn1_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>PowerPointAddIn1_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>D5F4959FBB4CCC61C1C37312DA0C6A1EE2861363</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>4CDB318ECAB64EDF2720E3244D2E3AAC699D6EAF</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
@@ -260,8 +259,7 @@
     </VisualStudio>
   </ProjectExtensions>
   <PropertyGroup>
-    <PostBuildEvent>xcopy /yr "D:\Dropbox\LeapMotionCSharp\LeapSDK\lib\x86\Leap.dll" "$(TargetDir)"
-xcopy /yr "D:\Dropbox\LeapMotionCSharp\LeapSDK\lib\x86
-\LeapCSharp.dll" "$(TargetDir)"</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>
