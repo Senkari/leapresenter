@@ -29,162 +29,181 @@ namespace PowerPointAddIn1
     public partial class Overlay : Window, ILeapEventDelegate
     {
         //private:
+
         private Controller controller;
         private LeapEventListener listener;
-
-        private Boolean isClosing = false;
-        private Boolean slideShowActive;
-        private Boolean penMode = false;
-        private Boolean eraserMode = false;
-
-
         private PowerPoint.SlideShowWindow window;
 
-        private int prevX;
-        private int prevY;
-        private long currentTime;
-        private long previousTimeMouse;
-        private long previousTimeGesture;
-        private long deltaTimeMouse;
-        private long deltaTimeGesture;
+        private bool isClosing = false;
+        private bool slideShowActive;
+
+        private int timestamp;
+        private int deltaTime;
+        private int cooldownTimeLeft = 0;
+        private const int cooldownTime = 1000000;   //in milliseconds
+
+        enum Mode{
+            Cursor, 
+            Pen, 
+            Eraser
+        };
+        Mode mode;  //not needed currently
 
         private void connectHandler()
         {
             this.controller.SetPolicy(Controller.PolicyFlag.POLICY_BACKGROUND_FRAMES);
             this.controller.EnableGesture(Gesture.GestureType.TYPE_SWIPE);
+            //ENABLE ANY PREDEFINED GESTURES THAT ARE TO BE USED
         }
 
         private void newFrameHandler(Leap.Frame currentFrame)
         {
             if (slideShowActive)
             {
-                currentTime = currentFrame.Timestamp;
-                deltaTimeMouse = currentTime - previousTimeMouse;
 
-                
+                deltaTime = (int)currentFrame.Timestamp - timestamp;
+                timestamp = (int)currentFrame.Timestamp;
+                cooldownTimeLeft -= deltaTime;
+                if (cooldownTimeLeft < 0) cooldownTimeLeft = 0;
 
-                if (deltaTimeMouse > 10000)
+                if (!currentFrame.Hands.IsEmpty)
                 {
 
-                    previousTimeMouse = currentTime;
+                    FingerList indexList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_INDEX);
+                    FingerList thumbList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_THUMB);
+                    FingerList middleList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_MIDDLE);
+                    FingerList ringList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_RING);
+                    FingerList pinkyList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_PINKY);
 
-                    if (!currentFrame.Hands.IsEmpty)
+                    // Get the first finger in the list of fingers
+                    Finger index = indexList[0];
+                    Finger thumb = thumbList[0];
+                    Finger middle = middleList[0];
+                    Finger ring = ringList[0];
+                    Finger pinky = pinkyList[0];
+
+                    updateCursor(index, ring, pinky);
+
+                    GestureList gestures = currentFrame.Gestures();
+
+                    for (int i = 0; i < gestures.Count(); i++)
                     {
-                        FingerList indexList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_INDEX);
-                        FingerList thumbList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_THUMB);
-                        FingerList middleList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_MIDDLE);
-                        FingerList ringList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_RING);
-                        FingerList pinkyList = currentFrame.Fingers.FingerType(Finger.FingerType.TYPE_PINKY);
+                        Gesture gesture = gestures[i];
 
-                        // Get the first finger in the list of fingers
-                        Finger finger = indexList[0];
-                        Finger finger1 = thumbList[0];
-                        Finger middle = middleList[0];
-                        Finger ring = ringList[0];
-                        Finger pinky = pinkyList[0];
+                        if (cooldownTimeLeft == 0)
+                        {
 
-                        // Get the closest screen intercepting a ray projecting from the finger
-                        if(finger.IsExtended && !ring.IsExtended && !pinky.IsExtended){
-
-                            Screen screen = controller.LocatedScreens.ClosestScreenHit(finger);
-
-                            if (screen != null && screen.IsValid)
+                            //gesture - action -mapping
+                            if (horizontalSwipeToRight(gesture))
                             {
-                                // Get the velocity of the finger tip
-                                var tipVelocity = (int)finger.TipVelocity.Magnitude;
-
-                                // Use tipVelocity to reduce jitters when attempting to hold
-                                // the cursor steady
-                                if (tipVelocity > 25)
-                                {
-                                    var xScreenIntersect = screen.Intersect(finger, true).x;
-                                    var yScreenIntersect = screen.Intersect(finger, true).y;
-
-                                    if (xScreenIntersect.ToString() != "NaN")
-                                    {
-                                        int x = (int)(xScreenIntersect * screen.WidthPixels);
-                                        int y = (int)(screen.HeightPixels - (yScreenIntersect * screen.HeightPixels));
-
-                                        MouseCursor.setCursor(x, y);
-
-                                        if (finger1.IsExtended)
-                                        {
-                                            if (!penMode)
-                                            {
-                                                canvas.Cursor = Cursors.Pen;
-                                                var canvasSettings = canvas.DefaultDrawingAttributes;
-                                                canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
-                                                canvasSettings.Width = 10;
-                                                canvasSettings.Height = 10;
-                                                canvas.EditingMode = InkCanvasEditingMode.Ink;
-                                                MouseCursor.sendLeftMouseDown();
-                                                penMode = true;
-                                            }
-
-                                        }
-                                        else if (middle.IsExtended)
-                                        {
-                                            if (!eraserMode)
-                                            {
-                                                canvas.Cursor = Cursors.Cross;
-                                                canvas.EditingMode = InkCanvasEditingMode.EraseByPoint;
-                                                canvas.EraserShape = new System.Windows.Ink.EllipseStylusShape(15, 15);
-                                                if (penMode)
-                                                {
-                                                    penMode = false;
-                                                }
-                                                else MouseCursor.sendLeftMouseDown();
-
-                                                eraserMode = true;
-                                            }
-                                            
-                                        }
-                                        else if (penMode || eraserMode)
-                                        {
-                                            canvas.Cursor = Cursors.Arrow;
-                                            MouseCursor.sendLeftMouseUp();
-                                            penMode = false;
-                                            eraserMode = false;
-                                        }
-                                        prevX = x;
-                                        prevY = y;
-                                    }
-                                }
+                                cooldownTimeLeft = cooldownTime;
+                                nextSlide();
+                            }
+                            else if (horizontalSwipeToLeft(gesture))
+                            {
+                                cooldownTimeLeft = cooldownTime;
+                                previousSlide();
+                            }
+                            else if (thumb.IsExtended)
+                            {
+                                setPenMode(canvas);
+                            }
+                            else if (middle.IsExtended)
+                            {
+                                setEraserMode(canvas);
+                            }
+                            else if ((thumb.IsExtended && middle.IsExtended) || (!thumb.IsExtended && !middle.IsExtended))
+                            {
+                                setCursorMode(canvas);
                             }
                         }
                     }
                 }
+            }
+        }
 
-                GestureList gestures = currentFrame.Gestures();
+        private void updateCursor(Finger index, Finger ring, Finger pinky)
+        {           
+            // Get the closest screen intercepting a ray projecting from the finger
+            if(index.IsExtended && !ring.IsExtended && !pinky.IsExtended)
+            {
+                Screen screen = controller.LocatedScreens.ClosestScreenHit(index);
 
-                for (int i = 0; i < gestures.Count(); i++)
+                if (screen != null && screen.IsValid)
                 {
-                    Gesture gesture = gestures[i];
-                    deltaTimeGesture = currentTime - previousTimeGesture;
+                    // Get the velocity of the finger tip
+                    var tipVelocity = (int)index.TipVelocity.Magnitude;
 
-
-                    if (gesture.Type == Gesture.GestureType.TYPE_SWIPE && deltaTimeGesture > 1000000)
+                    // Use tipVelocity to reduce jitters when attempting to hold the cursor steady
+                    if (tipVelocity > 25)
                     {
-                        SwipeGesture swipe = new SwipeGesture(gesture);
+                        var xScreenIntersect = screen.Intersect(index, true).x;
+                        var yScreenIntersect = screen.Intersect(index, true).y;
 
-                        previousTimeGesture = currentTime;
-
-                        if (swipe.Direction.x > 0.0f)
+                        if (xScreenIntersect.ToString() != "NaN")
                         {
-                            window.View.Next();
-                            canvas.Strokes.Clear();
-                            return;
+                            int x = (int)(xScreenIntersect * screen.WidthPixels);
+                            int y = (int)(screen.HeightPixels - (yScreenIntersect * screen.HeightPixels));
+                            MouseCursor.setCursor(x, y);                        
                         }
-                        else if (swipe.Direction.x < 0.0f)
-                        {
-                            window.View.Previous();
-                            canvas.Strokes.Clear();
-                            return;
-                        }
-
                     }
                 }
             }
+        }
+
+        private bool horizontalSwipeToRight(Gesture gesture)
+        {
+            if (gesture.Type == Gesture.GestureType.TYPE_SWIPE)
+            {
+                SwipeGesture swipe = new SwipeGesture(gesture);
+                if (swipe.Direction.x > 0.0f) return true;
+            }
+            return false;
+        }
+
+        private bool horizontalSwipeToLeft(Gesture gesture)
+        {
+            if (gesture.Type == Gesture.GestureType.TYPE_SWIPE)
+            {
+                SwipeGesture swipe = new SwipeGesture(gesture);
+                if (swipe.Direction.x < 0.0f) return true;
+            }
+            return false;
+        }
+
+        private void nextSlide()
+        {
+            window.View.Next();
+            canvas.Strokes.Clear();
+        }
+
+        private void previousSlide()
+        {
+            window.View.Previous();
+            canvas.Strokes.Clear();
+        }
+
+        private void setPenMode(InkCanvas canvas)
+        {
+            canvas.Cursor = Cursors.Pen;
+            canvas.EditingMode = InkCanvasEditingMode.Ink;
+            MouseCursor.sendLeftMouseDown();
+            mode = Mode.Pen;
+        }
+
+        private void setEraserMode(InkCanvas canvas)
+        {
+            canvas.Cursor = Cursors.Cross;
+            canvas.EditingMode = InkCanvasEditingMode.EraseByPoint;
+            MouseCursor.sendLeftMouseDown();
+            mode = Mode.Eraser;
+        }
+
+        private void setCursorMode(InkCanvas canvas)
+        {
+            canvas.Cursor = Cursors.Arrow;
+            MouseCursor.sendLeftMouseUp();
+            mode = Mode.Cursor;
         }
 
         private void Overlay_Closing(object sender, EventArgs e)
@@ -205,6 +224,17 @@ namespace PowerPointAddIn1
             canvas.UseCustomCursor = true;
             canvas.Cursor = Cursors.Arrow;
             Closing += this.Overlay_Closing;
+
+            //Canvas settings
+            var canvasSettings = canvas.DefaultDrawingAttributes;
+
+            //Pen     
+            canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
+            canvasSettings.Width = 10;
+            canvasSettings.Height = 10;
+
+            //Eraser
+            canvas.EraserShape = new System.Windows.Ink.EllipseStylusShape(15, 15);
         }
 
         delegate void LeapEventDelegate(string EventName);
