@@ -58,6 +58,7 @@ namespace PowerPointAddIn1
         {
             overlayWindow.setSlideShowActive(false);
             overlayWindow.Close();
+            MouseCursor.sendLeftMouseUp();
         }
 
 

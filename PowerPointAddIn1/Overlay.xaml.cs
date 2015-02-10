@@ -37,15 +37,20 @@ namespace PowerPointAddIn1
         private bool isClosing = false;
         private bool slideShowActive;
 
-        private int timestamp;
-        private int deltaTime;
-        private int cooldownTimeLeft = 0;
-        private const int cooldownTime = 1000000;   //in milliseconds
+        private BitmapImage penIcon;
+        private BitmapImage highlighterIcon;
+        private BitmapImage eraserIcon;
+
+        private long timestamp = 0;
+        private long deltaTime;
+        private long cooldownTimeLeft = 0;
+        private const long cooldownTime = 1000000;   //in microseconds
 
         enum Mode{
             Cursor, 
             Pen, 
-            Eraser
+            Highlighter,
+            Eraser        
         };
         Mode mode;  //not needed currently
 
@@ -61,8 +66,8 @@ namespace PowerPointAddIn1
             if (slideShowActive)
             {
 
-                deltaTime = (int)currentFrame.Timestamp - timestamp;
-                timestamp = (int)currentFrame.Timestamp;
+                deltaTime = currentFrame.Timestamp - timestamp;
+                timestamp = currentFrame.Timestamp;
                 cooldownTimeLeft -= deltaTime;
                 if (cooldownTimeLeft < 0) cooldownTimeLeft = 0;
 
@@ -84,18 +89,25 @@ namespace PowerPointAddIn1
 
                     updateCursor(index, ring, pinky);
 
-                    if (thumb.IsExtended)
+                    
+                    if (index.IsExtended && thumb.IsExtended)
                     {
-                        setPenMode(canvas);
+                        setPenMode();
                     }
-                    else if (middle.IsExtended)
+                    else if (index.IsExtended && middle.IsExtended)
                     {
-                        setEraserMode(canvas);
+                        setEraserMode();
                     }
                     else if ((thumb.IsExtended && middle.IsExtended) || (!thumb.IsExtended && !middle.IsExtended))
                     {
-                        setCursorMode(canvas);
+                        setCursorMode();
                     }
+
+                    if (thumb.IsExtended)
+                    {
+                        
+                    }
+
 
                     GestureList gestures = currentFrame.Gestures();
 
@@ -120,6 +132,10 @@ namespace PowerPointAddIn1
                         }
                     }
                 }
+                else
+                {
+                    setCursorMode();
+                }
             }
         }
 
@@ -136,7 +152,7 @@ namespace PowerPointAddIn1
                     var tipVelocity = (int)index.TipVelocity.Magnitude;
 
                     // Use tipVelocity to reduce jitters when attempting to hold the cursor steady
-                    if (tipVelocity > 25)
+                    if (tipVelocity > 0)
                     {
                         var xScreenIntersect = screen.Intersect(index, true).x;
                         var yScreenIntersect = screen.Intersect(index, true).y;
@@ -150,6 +166,17 @@ namespace PowerPointAddIn1
                     }
                 }
             }
+        }
+
+        private void updateIcons()
+        {
+            pen.Margin = new Thickness(0, 60, 0, 0);
+            eraser.Margin = new Thickness(0, 270, 0, 0);
+            highlighter.Margin = new Thickness(0, 165, 0, 0);
+
+            if (mode == Mode.Pen) pen.Margin = new Thickness(0, 60, 20, 0);
+            if (mode == Mode.Highlighter) highlighter.Margin = new Thickness(0, 165, 20, 0);
+            if (mode == Mode.Eraser) eraser.Margin = new Thickness(0, 270, 20, 0);
         }
 
         private bool horizontalSwipeToRight(Gesture gesture)
@@ -184,27 +211,49 @@ namespace PowerPointAddIn1
             canvas.Strokes.Clear();
         }
 
-        private void setPenMode(InkCanvas canvas)
+        private void setPenMode()
         {
+            var canvasSettings = canvas.DefaultDrawingAttributes;    
+            canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
+            canvasSettings.Width = 10;
+            canvasSettings.Height = 10;
             canvas.Cursor = Cursors.Pen;
             canvas.EditingMode = InkCanvasEditingMode.Ink;
             MouseCursor.sendLeftMouseDown();
             mode = Mode.Pen;
+            updateIcons();
         }
 
-        private void setEraserMode(InkCanvas canvas)
+        private void setHighlighterMode()
+        {
+            var canvasSettings = canvas.DefaultDrawingAttributes;
+            canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
+            canvasSettings.IsHighlighter = true;
+            canvasSettings.Color = Colors.Yellow;
+            canvasSettings.Width = 10;
+            canvasSettings.Height = 10;
+            canvas.Cursor = Cursors.Pen;
+            canvas.EditingMode = InkCanvasEditingMode.Ink;
+            MouseCursor.sendLeftMouseDown();
+            mode = Mode.Highlighter;
+            updateIcons();
+        }
+
+        private void setEraserMode()
         {
             canvas.Cursor = Cursors.Cross;
             canvas.EditingMode = InkCanvasEditingMode.EraseByPoint;
             MouseCursor.sendLeftMouseDown();
             mode = Mode.Eraser;
+            updateIcons();
         }
 
-        private void setCursorMode(InkCanvas canvas)
+        private void setCursorMode()
         {
             canvas.Cursor = Cursors.Arrow;
             MouseCursor.sendLeftMouseUp();
             mode = Mode.Cursor;
+            updateIcons();
         }
 
         private void Overlay_Closing(object sender, EventArgs e)
@@ -214,6 +263,10 @@ namespace PowerPointAddIn1
             this.controller.Dispose();
         }
 
+        private BitmapImage LoadIcon(string name)
+        {
+            return new BitmapImage(new Uri(System.IO.Path.Combine(Environment.CurrentDirectory, "Leapresenter", "icons", name)));
+        }
         //public:
    
         public Overlay()
@@ -226,16 +279,17 @@ namespace PowerPointAddIn1
             canvas.Cursor = Cursors.Arrow;
             Closing += this.Overlay_Closing;
 
-            //Canvas settings
-            var canvasSettings = canvas.DefaultDrawingAttributes;
-
-            //Pen     
-            canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
-            canvasSettings.Width = 10;
-            canvasSettings.Height = 10;
+            penIcon = LoadIcon("pen_icon.png");
+            highlighterIcon = LoadIcon("highlighter_icon.png");
+            eraserIcon = LoadIcon("eraser_icon.png");
+            
+            pen.Source = penIcon;
+            highlighter.Source = highlighterIcon;
+            eraser.Source = eraserIcon;
 
             //Eraser
             canvas.EraserShape = new System.Windows.Ink.EllipseStylusShape(15, 15);
+
         }
 
         delegate void LeapEventDelegate(string EventName);
