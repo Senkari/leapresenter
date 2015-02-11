@@ -106,9 +106,9 @@ namespace PowerPointAddIn1
 
                         //set the next mode
                         if (mode == Mode.Cursor)        mode = Mode.Pen;
-                        if (mode == Mode.Pen)           mode = Mode.Highlighter;
-                        if (mode == Mode.Highlighter)   mode = Mode.Eraser;
-                        if (mode == Mode.Eraser)        mode = Mode.Cursor;
+                        else if (mode == Mode.Pen)           mode = Mode.Highlighter;
+                        else if (mode == Mode.Highlighter)   mode = Mode.Eraser;
+                        else if (mode == Mode.Eraser)        mode = Mode.Cursor;
                         updateIcons();
                     }
 
@@ -231,12 +231,13 @@ namespace PowerPointAddIn1
 
         private void setPenMode()
         {
-            var canvasSettings          = canvas.DefaultDrawingAttributes;    
-            canvasSettings.StylusTip    = System.Windows.Ink.StylusTip.Ellipse;
-            canvasSettings.Width        = 10;
-            canvasSettings.Height       = 10;
-            canvas.Cursor               = Cursors.Pen;
-            canvas.EditingMode          = InkCanvasEditingMode.Ink;          
+            var canvasSettings              = canvas.DefaultDrawingAttributes;    
+            canvasSettings.StylusTip        = System.Windows.Ink.StylusTip.Ellipse;
+            canvasSettings.IsHighlighter    = false;
+            canvasSettings.Width            = 10;
+            canvasSettings.Height           = 10;
+            canvas.Cursor                   = Cursors.Pen;
+            canvas.EditingMode              = InkCanvasEditingMode.Ink;          
             MouseCursor.sendLeftMouseDown();         
         }
 
