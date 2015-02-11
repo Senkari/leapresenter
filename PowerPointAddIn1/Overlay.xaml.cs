@@ -41,18 +41,21 @@ namespace PowerPointAddIn1
         private BitmapImage highlighterIcon;
         private BitmapImage eraserIcon;
 
-        private long timestamp = 0;
+        private long timestamp                      = 0;
         private long deltaTime;
-        private long cooldownTimeLeft = 0;
-        private const long cooldownTime = 1000000;   //in microseconds
+        private long slideSwitchCooldownTimer       = 0;         //slide can be changed repeatedly only after a specified waiting time
+        private const long slideSwitchCooldownTime  = 1000000;   //in microseconds
+        private long modeSwitchTimer                = 0;         //"thumb up - thumb down" -gesture triggers mode switching only if "thumb down" -part is performed quicly after "thumb down"
+        private const long modeSwitchTime           = 1000000;   //in microseconds
+        private bool thumbUpGestureActivated        = false;     //set to true when the first part, "thumb up", is triggered. 
 
-        enum Mode{
+        private enum Mode{
             Cursor, 
             Pen, 
             Highlighter,
             Eraser        
         };
-        Mode mode;  //not needed currently
+        Mode mode           = Mode.Cursor;
 
         private void connectHandler()
         {
@@ -68,8 +71,10 @@ namespace PowerPointAddIn1
 
                 deltaTime = currentFrame.Timestamp - timestamp;
                 timestamp = currentFrame.Timestamp;
-                cooldownTimeLeft -= deltaTime;
-                if (cooldownTimeLeft < 0) cooldownTimeLeft = 0;
+                slideSwitchCooldownTimer -= deltaTime;
+                modeSwitchTimer -= deltaTime;
+                if (slideSwitchCooldownTimer < 0) slideSwitchCooldownTimer = 0;
+                if (modeSwitchTimer < 0) modeSwitchTimer = 0;
 
                 if (!currentFrame.Hands.IsEmpty)
                 {
@@ -89,24 +94,37 @@ namespace PowerPointAddIn1
 
                     updateCursor(index, ring, pinky);
 
-                    
-                    if (index.IsExtended && thumb.IsExtended)
+
+                    if (thumbUpGestureActivated == false && thumb.IsExtended && !index.IsExtended && !middle.IsExtended && !ring.IsExtended && !pinky.IsExtended)
                     {
-                        setPenMode();
+                        modeSwitchTimer = modeSwitchTime;
+                        thumbUpGestureActivated = true;
                     }
-                    else if (index.IsExtended && middle.IsExtended)
+                    if (thumbUpGestureActivated == true && modeSwitchTimer > 0 && !thumb.IsExtended && !index.IsExtended && !middle.IsExtended && !ring.IsExtended && !pinky.IsExtended)
                     {
-                        setEraserMode();
-                    }
-                    else if ((thumb.IsExtended && middle.IsExtended) || (!thumb.IsExtended && !middle.IsExtended))
-                    {
-                        setCursorMode();
+                        thumbUpGestureActivated = false;
+
+                        //set the next mode
+                        if (mode == Mode.Cursor)        mode = Mode.Pen;
+                        if (mode == Mode.Pen)           mode = Mode.Highlighter;
+                        if (mode == Mode.Highlighter)   mode = Mode.Eraser;
+                        if (mode == Mode.Eraser)        mode = Mode.Cursor;
+                        updateIcons();
                     }
 
-                    if (thumb.IsExtended)
+                    //ignore the gesture if left halfway while triggering time runs out
+                    if (modeSwitchTimer == 0) thumbUpGestureActivated = false;
+                 
+                    //ignore the gesture if invalidated halfway
+                    if (thumbUpGestureActivated == true && !(thumb.IsExtended && !index.IsExtended && !middle.IsExtended && !ring.IsExtended && !pinky.IsExtended)) thumbUpGestureActivated = false;
+
+                    if (index.IsExtended && thumb.IsExtended)
                     {
-                        
+                        if (mode == Mode.Pen) setPenMode();
+                        if (mode == Mode.Highlighter) setHighlighterMode();
+                        if (mode == Mode.Eraser) setEraserMode();
                     }
+                    else setCursorMode();
 
 
                     GestureList gestures = currentFrame.Gestures();
@@ -115,18 +133,18 @@ namespace PowerPointAddIn1
                     {
                         Gesture gesture = gestures[i];
 
-                        if (cooldownTimeLeft == 0)
+                        if (slideSwitchCooldownTimer == 0)
                         {
 
                             //gesture - action -mapping
                             if (horizontalSwipeToRight(gesture))
                             {
-                                cooldownTimeLeft = cooldownTime;
+                                slideSwitchCooldownTimer = slideSwitchCooldownTime;
                                 nextSlide();
                             }
                             else if (horizontalSwipeToLeft(gesture))
                             {
-                                cooldownTimeLeft = cooldownTime;
+                                slideSwitchCooldownTimer = slideSwitchCooldownTime;
                                 previousSlide();
                             }
                         }
@@ -170,13 +188,13 @@ namespace PowerPointAddIn1
 
         private void updateIcons()
         {
-            pen.Margin = new Thickness(0, 60, 0, 0);
-            eraser.Margin = new Thickness(0, 270, 0, 0);
-            highlighter.Margin = new Thickness(0, 165, 0, 0);
+            pen.Margin          = new Thickness(0, 60, 0, 0);
+            highlighter.Margin  = new Thickness(0, 165, 0, 0);
+            eraser.Margin       = new Thickness(0, 270, 0, 0);           
 
-            if (mode == Mode.Pen) pen.Margin = new Thickness(0, 60, 20, 0);
-            if (mode == Mode.Highlighter) highlighter.Margin = new Thickness(0, 165, 20, 0);
-            if (mode == Mode.Eraser) eraser.Margin = new Thickness(0, 270, 20, 0);
+            if (mode == Mode.Pen) pen.Margin                    = new Thickness(0, 60, 20, 0);
+            if (mode == Mode.Highlighter) highlighter.Margin    = new Thickness(0, 165, 20, 0);
+            if (mode == Mode.Eraser) eraser.Margin              = new Thickness(0, 270, 20, 0);
         }
 
         private bool horizontalSwipeToRight(Gesture gesture)
@@ -213,47 +231,39 @@ namespace PowerPointAddIn1
 
         private void setPenMode()
         {
-            var canvasSettings = canvas.DefaultDrawingAttributes;    
-            canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
-            canvasSettings.Width = 10;
-            canvasSettings.Height = 10;
-            canvas.Cursor = Cursors.Pen;
-            canvas.EditingMode = InkCanvasEditingMode.Ink;
-            MouseCursor.sendLeftMouseDown();
-            mode = Mode.Pen;
-            updateIcons();
+            var canvasSettings          = canvas.DefaultDrawingAttributes;    
+            canvasSettings.StylusTip    = System.Windows.Ink.StylusTip.Ellipse;
+            canvasSettings.Width        = 10;
+            canvasSettings.Height       = 10;
+            canvas.Cursor               = Cursors.Pen;
+            canvas.EditingMode          = InkCanvasEditingMode.Ink;          
+            MouseCursor.sendLeftMouseDown();         
         }
 
         private void setHighlighterMode()
         {
-            var canvasSettings = canvas.DefaultDrawingAttributes;
-            canvasSettings.StylusTip = System.Windows.Ink.StylusTip.Ellipse;
-            canvasSettings.IsHighlighter = true;
-            canvasSettings.Color = Colors.Yellow;
-            canvasSettings.Width = 10;
-            canvasSettings.Height = 10;
-            canvas.Cursor = Cursors.Pen;
-            canvas.EditingMode = InkCanvasEditingMode.Ink;
+            var canvasSettings              = canvas.DefaultDrawingAttributes;
+            canvasSettings.StylusTip        = System.Windows.Ink.StylusTip.Rectangle;
+            canvasSettings.IsHighlighter    = true;
+            canvasSettings.Color            = Colors.Yellow;
+            canvasSettings.Width            = 10;
+            canvasSettings.Height           = 20;
+            canvas.Cursor                   = Cursors.Pen;
+            canvas.EditingMode              = InkCanvasEditingMode.Ink;   
             MouseCursor.sendLeftMouseDown();
-            mode = Mode.Highlighter;
-            updateIcons();
         }
 
         private void setEraserMode()
         {
-            canvas.Cursor = Cursors.Cross;
-            canvas.EditingMode = InkCanvasEditingMode.EraseByPoint;
-            MouseCursor.sendLeftMouseDown();
-            mode = Mode.Eraser;
-            updateIcons();
+            canvas.Cursor       = Cursors.Cross;
+            canvas.EditingMode  = InkCanvasEditingMode.EraseByPoint;
+            MouseCursor.sendLeftMouseDown();           
         }
 
         private void setCursorMode()
         {
-            canvas.Cursor = Cursors.Arrow;
-            MouseCursor.sendLeftMouseUp();
-            mode = Mode.Cursor;
-            updateIcons();
+            canvas.Cursor   = Cursors.Arrow;
+            MouseCursor.sendLeftMouseUp();        
         }
 
         private void Overlay_Closing(object sender, EventArgs e)
@@ -288,7 +298,7 @@ namespace PowerPointAddIn1
             eraser.Source = eraserIcon;
 
             //Eraser
-            canvas.EraserShape = new System.Windows.Ink.EllipseStylusShape(15, 15);
+            canvas.EraserShape = new System.Windows.Ink.EllipseStylusShape(20, 20);
 
         }
 

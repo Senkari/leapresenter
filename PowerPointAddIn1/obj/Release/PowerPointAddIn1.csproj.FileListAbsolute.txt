@@ -14,18 +14,9 @@ C:\Users\Kari Hormi\Documents\Visual Studio 2013\Projects\PowerPointAddIn1\Power
 C:\Users\Kari Hormi\Documents\Visual Studio 2013\Projects\PowerPointAddIn1\PowerPointAddIn1\obj\Release\LeaPresenter.dll
 C:\Users\Kari Hormi\Documents\Visual Studio 2013\Projects\PowerPointAddIn1\PowerPointAddIn1\obj\Release\LeaPresenter.pdb
 C:\Users\Kari Hormi\Documents\Visual Studio 2013\Projects\PowerPointAddIn1\PowerPointAddIn1\obj\Release\PowerPointAddIn1.csprojResolveAssemblyReference.cache
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\bin\Release\LeaPresenter.dll
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\bin\Release\LeaPresenter.pdb
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\bin\Release\LeaPresenter.dll.manifest
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\bin\Release\LeaPresenter.vsto
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\bin\Release\Microsoft.Office.Tools.Common.v4.0.Utilities.dll
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\bin\Release\Microsoft.Office.Tools.Common.v4.0.Utilities.xml
 D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\Overlay.baml
 D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\Overlay.g.cs
 D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\LeaPresenter_MarkupCompile.cache
 D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\LeaPresenter.g.resources
 D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\PowerPointAddIn1.Properties.Resources.resources
 D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\PowerPointAddIn1.csproj.GenerateResource.Cache
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\LeaPresenter.dll
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\LeaPresenter.pdb
-D:\Yliopisto\ACP1\leapresenter\PowerPointAddIn1\obj\Release\PowerPointAddIn1.csprojResolveAssemblyReference.cache
