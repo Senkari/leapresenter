@@ -234,6 +234,7 @@ namespace PowerPointAddIn1
             var canvasSettings              = canvas.DefaultDrawingAttributes;    
             canvasSettings.StylusTip        = System.Windows.Ink.StylusTip.Ellipse;
             canvasSettings.IsHighlighter    = false;
+            canvasSettings.Color            = Colors.Black;
             canvasSettings.Width            = 10;
             canvasSettings.Height           = 10;
             canvas.Cursor                   = Cursors.Pen;
