@@ -45,9 +45,11 @@ namespace PowerPointAddIn1
         private long deltaTime;
         private long slideSwitchCooldownTimer       = 0;         //slide can be changed repeatedly only after a specified waiting time
         private const long slideSwitchCooldownTime  = 1000000;   //in microseconds
-        private long modeSwitchTimer                = 0;         //"thumb up - thumb down" -gesture triggers mode switching only if "thumb down" -part is performed quicly after "thumb down"
+        private long modeSwitchTimer                = 0;         //"thumb up - thumb down" -gesture triggers mode switching only if "thumb down" -part is performed quickly after "thumb down"
         private const long modeSwitchTime           = 1000000;   //in microseconds
-        private bool thumbUpGestureActivated        = false;     //set to true when the first part, "thumb up", is triggered. 
+        private bool thumbUpGestureActivated        = false;     //set to true when the first part, "thumb up", is triggered.
+
+        private List<System.IO.MemoryStream> slideStrokes = new List<System.IO.MemoryStream>();
 
         private enum Mode{
             Cursor, 
@@ -55,7 +57,7 @@ namespace PowerPointAddIn1
             Highlighter,
             Eraser        
         };
-        Mode mode           = Mode.Cursor;
+        Mode mode = Mode.Cursor;
 
         private void connectHandler()
         {
@@ -92,7 +94,7 @@ namespace PowerPointAddIn1
                     Finger ring = ringList[0];
                     Finger pinky = pinkyList[0];
 
-                    updateCursor(index, ring, pinky);
+                    updateCursor(currentFrame, index, ring, pinky);
 
 
                     if (thumbUpGestureActivated == false && thumb.IsExtended && !index.IsExtended && !middle.IsExtended && !ring.IsExtended && !pinky.IsExtended)
@@ -157,32 +159,21 @@ namespace PowerPointAddIn1
             }
         }
 
-        private void updateCursor(Finger index, Finger ring, Finger pinky)
+        private void updateCursor(Leap.Frame currentFrame, Finger index, Finger ring, Finger pinky)
         {           
-            // Get the closest screen intercepting a ray projecting from the finger
             if(index.IsExtended && !ring.IsExtended && !pinky.IsExtended)
             {
-                Screen screen = controller.LocatedScreens.ClosestScreenHit(index);
+                int resX = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width;
+                int resY = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height;
 
-                if (screen != null && screen.IsValid)
-                {
-                    // Get the velocity of the finger tip
-                    var tipVelocity = (int)index.TipVelocity.Magnitude;
+                InteractionBox iBox = currentFrame.InteractionBox;
 
-                    // Use tipVelocity to reduce jitters when attempting to hold the cursor steady
-                    if (tipVelocity > 0)
-                    {
-                        var xScreenIntersect = screen.Intersect(index, true).x;
-                        var yScreenIntersect = screen.Intersect(index, true).y;
+                Leap.Vector leapPoint = index.TipPosition;
+                Leap.Vector normalizedPoint = iBox.NormalizePoint(leapPoint, false);
 
-                        if (xScreenIntersect.ToString() != "NaN")
-                        {
-                            int x = (int)(xScreenIntersect * screen.WidthPixels);
-                            int y = (int)(screen.HeightPixels - (yScreenIntersect * screen.HeightPixels));
-                            MouseCursor.setCursor(x, y);                        
-                        }
-                    }
-                }
+                int x = (int)(normalizedPoint.x * resX);
+                int y = (int)((1 - normalizedPoint.y) * resY);
+                MouseCursor.setCursor(x, y);    
             }
         }
 
@@ -219,14 +210,64 @@ namespace PowerPointAddIn1
 
         private void nextSlide()
         {
+            int position = window.View.CurrentShowPosition;
+            if (slideStrokes.Count < position)
+            {
+                slideStrokes.Add(new System.IO.MemoryStream());
+            }
+            else
+            {
+                slideStrokes[position - 1].Close();
+                slideStrokes[position - 1] = new System.IO.MemoryStream();
+            }
+            canvas.Strokes.Save(slideStrokes[position - 1]);
             window.View.Next();
-            canvas.Strokes.Clear();
+            if (window.View.Slide.SlideIndex < window.Presentation.Slides.Count)
+            {
+                position = window.View.CurrentShowPosition;
+                if (slideStrokes.Count < position)
+                {
+                    canvas.Strokes.Clear();
+                }
+                else
+                {
+                    slideStrokes[position - 1].Flush();
+                    slideStrokes[position - 1].Seek(0, System.IO.SeekOrigin.Begin);
+                    System.Windows.Ink.StrokeCollection stroke = new System.Windows.Ink.StrokeCollection(slideStrokes[position - 1]);
+                    canvas.Strokes = stroke;
+                }
+            }
+            
         }
 
         private void previousSlide()
         {
+            int position = window.View.CurrentShowPosition;
+            if (slideStrokes.Count < position)
+            {
+                System.IO.MemoryStream stream = new System.IO.MemoryStream();
+                slideStrokes.Add(stream);
+            }
+            else
+            {
+                slideStrokes[position - 1].Close();
+                slideStrokes[position - 1] = new System.IO.MemoryStream();
+            }
+            canvas.Strokes.Count();
+            canvas.Strokes.Save(slideStrokes[position - 1]);
             window.View.Previous();
-            canvas.Strokes.Clear();
+            position = window.View.CurrentShowPosition;
+            if (slideStrokes.Count < position)
+            {
+                canvas.Strokes.Clear();
+            }
+            else
+            {
+                slideStrokes[position - 1].Flush();
+                slideStrokes[position - 1].Seek(0, System.IO.SeekOrigin.Begin);
+                System.Windows.Ink.StrokeCollection stroke = new System.Windows.Ink.StrokeCollection(slideStrokes[position - 1]);
+                canvas.Strokes = stroke;
+            }
         }
 
         private void setPenMode()
