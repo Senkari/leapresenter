@@ -10,11 +10,17 @@
     <Grid Background="#00000000">
         <InkCanvas x:Name="canvas" Background="#01000000">
         </InkCanvas>
-        <Image x:Name="pen" HorizontalAlignment="Right" Height="100" Width="100" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,60,0,0">
+
+        <Image x:Name="cursor" HorizontalAlignment="Right" Height="50" Width="50" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,60,0,0">
         </Image>
-        <Image x:Name="highlighter" HorizontalAlignment="Right" Height="100" Width="100" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,165,0,0">
+        <Image x:Name="pen" HorizontalAlignment="Right" Height="50" Width="50" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,60,0,0">
         </Image>
-        <Image x:Name="eraser" HorizontalAlignment="Right" Height="100" Width="100" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,270,0,0">
+        <Image x:Name="highlighter" HorizontalAlignment="Right" Height="50" Width="50" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,165,0,0">
         </Image>
+        <Image x:Name="eraser" HorizontalAlignment="Right" Height="50" Width="50" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,270,0,0">
+        </Image>
+        <Image x:Name="highlight" HorizontalAlignment="Right" Height="50" Width="50" VerticalAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Disabled" RenderTransformOrigin="0.5,0.5" Margin="0,270,0,0">
+        </Image>
+
     </Grid>
 </Window>

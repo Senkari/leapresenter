@@ -37,9 +37,15 @@ namespace PowerPointAddIn1
         private bool isClosing = false;
         private bool slideShowActive;
 
+        private BitmapImage cursorIcon;
         private BitmapImage penIcon;
         private BitmapImage highlighterIcon;
         private BitmapImage eraserIcon;
+        private BitmapImage highlightIcon;
+        private long iconFadeTimer = 0;
+        const double fadingTime = 2.0; //seconds
+        const double fadingWaitTime = 0.5;
+        double opacity = 0;
 
         private long timestamp                      = 0;
         private long deltaTime;
@@ -75,8 +81,19 @@ namespace PowerPointAddIn1
                 timestamp = currentFrame.Timestamp;
                 slideSwitchCooldownTimer -= deltaTime;
                 modeSwitchTimer -= deltaTime;
+                iconFadeTimer -= deltaTime;
                 if (slideSwitchCooldownTimer < 0) slideSwitchCooldownTimer = 0;
                 if (modeSwitchTimer < 0) modeSwitchTimer = 0;
+                if (iconFadeTimer < 0) iconFadeTimer = 0;
+
+                opacity = 1.0;
+                if (iconFadeTimer < (fadingTime * 1000000)) opacity = iconFadeTimer / (fadingTime * 1000000);
+
+                highlight.Opacity = opacity;
+                cursor.Opacity = opacity;
+                pen.Opacity = opacity;
+                highlighter.Opacity = opacity;
+                eraser.Opacity = opacity;
 
                 if (!currentFrame.Hands.IsEmpty)
                 {
@@ -95,6 +112,7 @@ namespace PowerPointAddIn1
                     Finger pinky = pinkyList[0];
 
                     updateCursor(currentFrame, index, ring, pinky);
+                    
 
 
                     if (thumbUpGestureActivated == false && thumb.IsExtended && !index.IsExtended && !middle.IsExtended && !ring.IsExtended && !pinky.IsExtended)
@@ -106,8 +124,10 @@ namespace PowerPointAddIn1
                     {
                         thumbUpGestureActivated = false;
 
+                        iconFadeTimer = (long)(fadingTime * 1000000.0 + fadingWaitTime * 1000000.0);
+
                         //set the next mode
-                        if (mode == Mode.Cursor)        mode = Mode.Pen;
+                        if (mode == Mode.Cursor)             mode = Mode.Pen;
                         else if (mode == Mode.Pen)           mode = Mode.Highlighter;
                         else if (mode == Mode.Highlighter)   mode = Mode.Eraser;
                         else if (mode == Mode.Eraser)        mode = Mode.Cursor;
@@ -120,7 +140,7 @@ namespace PowerPointAddIn1
                     //ignore the gesture if invalidated halfway
                     if (thumbUpGestureActivated == true && !(thumb.IsExtended && !index.IsExtended && !middle.IsExtended && !ring.IsExtended && !pinky.IsExtended)) thumbUpGestureActivated = false;
 
-                    if (index.IsExtended && thumb.IsExtended)
+                    if (index.IsExtended && thumb.IsExtended && !middle.IsExtended && !ring.IsExtended && !pinky.IsExtended)
                     {
                         if (mode == Mode.Pen) setPenMode();
                         if (mode == Mode.Highlighter) setHighlighterMode();
@@ -171,6 +191,9 @@ namespace PowerPointAddIn1
                 Leap.Vector leapPoint = index.TipPosition;
                 Leap.Vector normalizedPoint = iBox.NormalizePoint(leapPoint, false);
 
+                normalizedPoint *= 0.5f; //scale
+                normalizedPoint += new Leap.Vector(.25f, .25f, .25f); // re-center
+
                 int x = (int)(normalizedPoint.x * resX);
                 int y = (int)((1 - normalizedPoint.y) * resY);
                 MouseCursor.setCursor(x, y);    
@@ -179,13 +202,11 @@ namespace PowerPointAddIn1
 
         private void updateIcons()
         {
-            pen.Margin          = new Thickness(0, 60, 0, 0);
-            highlighter.Margin  = new Thickness(0, 165, 0, 0);
-            eraser.Margin       = new Thickness(0, 270, 0, 0);           
-
-            if (mode == Mode.Pen) pen.Margin                    = new Thickness(0, 60, 20, 0);
-            if (mode == Mode.Highlighter) highlighter.Margin    = new Thickness(0, 165, 20, 0);
-            if (mode == Mode.Eraser) eraser.Margin              = new Thickness(0, 270, 20, 0);
+            highlight.Margin                                = new Thickness(0, 60, -200, 0);
+            if (mode == Mode.Cursor) highlight.Margin       = new Thickness(0, 60, 5, 0);
+            if (mode == Mode.Pen) highlight.Margin          = new Thickness(0, 165, 5, 0);
+            if (mode == Mode.Highlighter) highlight.Margin  = new Thickness(0, 270, 5, 0);
+            if (mode == Mode.Eraser) highlight.Margin       = new Thickness(0, 375, 5, 0);
         }
 
         private bool horizontalSwipeToRight(Gesture gesture)
@@ -210,64 +231,16 @@ namespace PowerPointAddIn1
 
         private void nextSlide()
         {
-            int position = window.View.CurrentShowPosition;
-            if (slideStrokes.Count < position)
-            {
-                slideStrokes.Add(new System.IO.MemoryStream());
-            }
-            else
-            {
-                slideStrokes[position - 1].Close();
-                slideStrokes[position - 1] = new System.IO.MemoryStream();
-            }
-            canvas.Strokes.Save(slideStrokes[position - 1]);
+
+            canvas.Strokes.Clear();
             window.View.Next();
-            if (window.View.Slide.SlideIndex < window.Presentation.Slides.Count)
-            {
-                position = window.View.CurrentShowPosition;
-                if (slideStrokes.Count < position)
-                {
-                    canvas.Strokes.Clear();
-                }
-                else
-                {
-                    slideStrokes[position - 1].Flush();
-                    slideStrokes[position - 1].Seek(0, System.IO.SeekOrigin.Begin);
-                    System.Windows.Ink.StrokeCollection stroke = new System.Windows.Ink.StrokeCollection(slideStrokes[position - 1]);
-                    canvas.Strokes = stroke;
-                }
-            }
             
         }
 
         private void previousSlide()
         {
-            int position = window.View.CurrentShowPosition;
-            if (slideStrokes.Count < position)
-            {
-                System.IO.MemoryStream stream = new System.IO.MemoryStream();
-                slideStrokes.Add(stream);
-            }
-            else
-            {
-                slideStrokes[position - 1].Close();
-                slideStrokes[position - 1] = new System.IO.MemoryStream();
-            }
-            canvas.Strokes.Count();
-            canvas.Strokes.Save(slideStrokes[position - 1]);
+            canvas.Strokes.Clear();
             window.View.Previous();
-            position = window.View.CurrentShowPosition;
-            if (slideStrokes.Count < position)
-            {
-                canvas.Strokes.Clear();
-            }
-            else
-            {
-                slideStrokes[position - 1].Flush();
-                slideStrokes[position - 1].Seek(0, System.IO.SeekOrigin.Begin);
-                System.Windows.Ink.StrokeCollection stroke = new System.Windows.Ink.StrokeCollection(slideStrokes[position - 1]);
-                canvas.Strokes = stroke;
-            }
         }
 
         private void setPenMode()
@@ -275,7 +248,7 @@ namespace PowerPointAddIn1
             var canvasSettings              = canvas.DefaultDrawingAttributes;    
             canvasSettings.StylusTip        = System.Windows.Ink.StylusTip.Ellipse;
             canvasSettings.IsHighlighter    = false;
-            canvasSettings.Color            = Colors.Black;
+            canvasSettings.Color            = Colors.Red;
             canvasSettings.Width            = 10;
             canvasSettings.Height           = 10;
             canvas.Cursor                   = Cursors.Pen;
@@ -332,10 +305,14 @@ namespace PowerPointAddIn1
             canvas.Cursor = Cursors.Arrow;
             Closing += this.Overlay_Closing;
 
-            penIcon = LoadIcon("pen_icon.png");
-            highlighterIcon = LoadIcon("highlighter_icon.png");
-            eraserIcon = LoadIcon("eraser_icon.png");
-            
+            cursorIcon = LoadIcon("cursor_icon (2).png");
+            penIcon = LoadIcon("pen_icon (2).png");
+            highlighterIcon = LoadIcon("highlighter_icon (2).png");
+            eraserIcon = LoadIcon("eraser_icon (2).png");
+            highlightIcon = LoadIcon("highlight.png");
+
+            cursor.Source = cursorIcon;
+            highlight.Source = highlightIcon;
             pen.Source = penIcon;
             highlighter.Source = highlighterIcon;
             eraser.Source = eraserIcon;
@@ -343,6 +320,13 @@ namespace PowerPointAddIn1
             //Eraser
             canvas.EraserShape = new System.Windows.Ink.EllipseStylusShape(20, 20);
 
+            highlight.Margin = new Thickness(0, 0, -200, 0);
+
+            cursor.Margin = new Thickness(0, 60, 5, 0);
+            pen.Margin = new Thickness(0, 165, 5, 0);
+            highlighter.Margin = new Thickness(0, 270, 5, 0);
+            eraser.Margin = new Thickness(0, 375, 5, 0);
+            
         }
 
         delegate void LeapEventDelegate(string EventName);
